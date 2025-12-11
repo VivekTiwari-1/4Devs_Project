@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Workload Generator
 Generates random container arrivals for simulation
@@ -200,3 +201,6 @@ def generate_workload(current_time, pattern='random'):
     """
     generator = WorkloadGenerator(pattern=pattern)
     return generator.generate(current_time)
+=======
+a
+>>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

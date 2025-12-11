@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Main Simulator Class - Integrated with RL (Step 3)
 """
@@ -420,3 +421,6 @@ def run_simulation(num_slots=50, workload_pattern='random',
                     enable_rl=enable_rl)
     sim.run(num_slots=num_slots)
     return sim
+=======
+a
+>>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

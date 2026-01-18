@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Energy Model - Quadratic CPU Energy Calculation
 Implements: P_cpu = α₁·μ + α₂·μ²
@@ -246,6 +245,3 @@ def calculate_energy(pm, tau=TIME_SLOT_DURATION):
     """
     model = EnergyModel()
     return model.compute_pm_energy(pm)
-=======
-a
->>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

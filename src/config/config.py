@@ -24,8 +24,8 @@ CORE_SPEED = 5_000_000  # ✅ FIXED: 5M instructions per second per core (was 1M
 # CONTAINER SPECIFICATIONS
 # ============================================
 # Range for random container workload (instructions)
-CONTAINER_MIN_INSTRUCTIONS = 500_000_000    # ✅ FIXED: 500M (was 5B)
-CONTAINER_MAX_INSTRUCTIONS = 2_000_000_000  # ✅ FIXED: 2B (was 20B)
+CONTAINER_MIN_INSTRUCTIONS = 2_000_000_000   # Was 500M - longer tasks
+CONTAINER_MAX_INSTRUCTIONS = 8_000_000_000   # Was 2B
 
 # Range for random deadline offset (seconds from arrival)
 CONTAINER_MIN_DEADLINE_OFFSET = 300  # 5 minutes
@@ -38,7 +38,7 @@ DEFAULT_CORES_PER_CONTAINER = 1
 # WORKLOAD GENERATOR SETTINGS
 # ============================================
 MIN_CONTAINERS_PER_SLOT = 0  # minimum new containers per time slot
-MAX_CONTAINERS_PER_SLOT = 5  # maximum new containers per time slot
+MAX_CONTAINERS_PER_SLOT = 15  # maximum new containers per time slot
 
 # ============================================
 # PLACEMENT MODULE SETTINGS
@@ -63,8 +63,8 @@ ENERGY_STATIC_POWER = 100  # watts when PM is ON but idle
 # ============================================
 # MIGRATION SETTINGS (for Step 4)
 # ============================================
-MIGRATION_UNDERLOAD_THRESHOLD = 0.30  # 30% - migrate out if below
-MIGRATION_OVERLOAD_THRESHOLD = 0.90  # 90% - migrate out if above
+MIGRATION_UNDERLOAD_THRESHOLD = 0.20  # 30% - migrate out if below
+MIGRATION_OVERLOAD_THRESHOLD = 0.70  # 90% - migrate out if above
 MIGRATION_COST_INSTRUCTIONS = 1_000_000  # penalty for migration
 
 # ============================================
@@ -128,6 +128,6 @@ PRINT_EVERY_N_SLOTS = 10  # print summary every N slots
 # ============================================
 # These will be used in later steps
 ENABLE_RL_SCALING = True  # Step 3
-ENABLE_MIGRATION = False  # Step 4
+ENABLE_MIGRATION = True  # Step 4
 ENABLE_ENERGY_MODEL = True  # Step 2 ✅ ENABLED
 ENABLE_DELAYED_PLACEMENT = False  # Advanced feature

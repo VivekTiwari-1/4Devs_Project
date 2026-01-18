@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Physical Machine (PM) Class
 Represents a server/host machine that runs containers
@@ -256,6 +255,3 @@ class PhysicalMachine:
             'available_cores': self.available_cores(),
             'total_cores': self.total_cores
         }
-=======
-a
->>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

@@ -15,7 +15,7 @@ def main():
     print("ENERGY-EFFICIENT CONTAINER CLOUD SIMULATOR")
     print("🔬" * 30 + "\n")
     
-    sim = Simulator(workload_pattern='random', placement_strategy='first_fit')
+    sim = Simulator(workload_pattern='bursty', placement_strategy='first_fit')
     sim.run(num_slots=50)
     
     return sim

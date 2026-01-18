@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Container Class
 Represents a containerized workload with instructions, deadline, and resource allocation
@@ -158,6 +157,3 @@ class Container:
             'pm_id': self.pm_id,
             'progress_pct': self.get_progress_percentage()
         }
-=======
-a
->>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

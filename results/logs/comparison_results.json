@@ -1,0 +1,26 @@
+{
+  "Baseline (No RL, No Migration)": {
+    "energy": 85.6712941279226,
+    "cost": 10.28055529535071,
+    "violations": 0.0,
+    "violation_rate": 0.0,
+    "peak_pms": 2.0,
+    "migrations": 0
+  },
+  "RL Only (No Migration)": {
+    "energy": 90.9417854100091,
+    "cost": 10.913014249201092,
+    "violations": 9.0,
+    "violation_rate": 0.42857142857142855,
+    "peak_pms": 2.0,
+    "migrations": 0
+  },
+  "RL + Migration (Full System)": {
+    "energy": 52.98109425022327,
+    "cost": 6.357731310026792,
+    "violations": 0.0,
+    "violation_rate": 0.0,
+    "peak_pms": 1.0,
+    "migrations": 44.0
+  }
+}

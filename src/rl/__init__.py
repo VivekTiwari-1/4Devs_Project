@@ -1,8 +1,7 @@
 """
-RL package
-Contains Q-learning agent and related components
+RL package - QMIX Multi-Agent Implementation (8th Semester)
 """
 
-from .q_learning_agent import QLearningAgent
+from .qmix_agent import QMIXAgent
 
-__all__ = ['QLearningAgent']
+__all__ = ['QMIXAgent']

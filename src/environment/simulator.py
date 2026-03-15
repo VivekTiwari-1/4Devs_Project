@@ -1,6 +1,5 @@
-<<<<<<< HEAD
 """
-Main Simulator Class - Integrated with RL (Step 3)
+Main Simulator Class - With QMIX Multi-Agent RL (8th Semester Upgrade)
 """
 
 import sys
@@ -14,29 +13,32 @@ from config.config import (
     PRINT_EVERY_N_SLOTS,
     DEBUG_MODE,
     ENABLE_RL_SCALING,
+    ENABLE_MIGRATION,
+    NUM_QMIX_AGENTS,
     RL_DEADLINE_VIOLATION_PENALTY
 )
 from environment.pm import PhysicalMachine
 from environment.workload_generator import WorkloadGenerator
 from environment.energy_model import EnergyModel
 from modules.placement import PlacementModule, DelayedPlacementQueue
-from rl.q_learning_agent import QLearningAgent
+from modules.migration import MigrationModule
 from modules.policies import AllocationPolicies
+from rl.qmix_agent import QMIXAgent
 
 
 class Simulator:
     """
-    Main simulation engine with RL-based CPU scaling.
+    Main simulation engine with QMIX Multi-Agent RL.
     
-    Step 3 additions:
-    - Q-learning agent for CPU allocation
-    - Dynamic policy selection per PM
-    - Reward-based learning
+    8th Semester Upgrade:
+    - Multi-agent QMIX replacing single-agent Q-Learning
+    - Experience replay buffer
+    - Target networks for stability
+    - Mixing network with hypernetwork
     """
     
     def __init__(self, workload_pattern='random', placement_strategy='first_fit', 
-                 enable_rl=ENABLE_RL_SCALING):
-        """Initialize simulator with optional RL."""
+                 enable_rl=ENABLE_RL_SCALING, enable_migration=ENABLE_MIGRATION):
         # Time management
         self.current_time = 0
         self.time_slot_duration = TIME_SLOT_DURATION
@@ -52,11 +54,15 @@ class Simulator:
         self.delayed_queue = DelayedPlacementQueue()
         self.energy_model = EnergyModel()
         
-        # 🤖 RL Agent (Step 3)
+        # QMIX Multi-Agent RL
         self.enable_rl = enable_rl
         if self.enable_rl:
-            self.rl_agent = QLearningAgent()
-            self.pm_states = {}  # Track previous state for each PM
+            self.rl_agent = QMIXAgent(num_agents=NUM_QMIX_AGENTS)
+        
+        # Migration Module
+        self.enable_migration = enable_migration
+        if self.enable_migration:
+            self.migration_module = MigrationModule()
         
         # Tracking
         self.total_containers_arrived = 0
@@ -74,19 +80,28 @@ class Simulator:
             'avg_cpu_util': [],
             'energy_consumed': [],
             'total_power': [],
-            'rl_actions': [],        # 🤖 NEW
-            'rl_rewards': [],        # 🤖 NEW
-            'rl_epsilon': []         # 🤖 NEW
+            'rl_actions': [],
+            'rl_rewards': [],
+            'rl_epsilon': [],
+            'migrations': []
         }
         
-        mode = "RL-ENABLED" if self.enable_rl else "Baseline"
+        mode_parts = []
+        if self.enable_rl:
+            mode_parts.append("QMIX")
+        if self.enable_migration:
+            mode_parts.append("Migration")
+        mode = "+".join(mode_parts) if mode_parts else "Baseline"
+        
         print(f"✅ Simulator initialized ({mode})")
         print(f"   Workload pattern: {workload_pattern}")
         print(f"   Placement strategy: {placement_strategy}")
         print(f"   Time slot duration: {TIME_SLOT_DURATION}s")
-        print(f"   ⚡ Energy model: ENABLED (Quadratic CPU)")
+        print(f"   ⚡ Energy model: ENABLED")
         if self.enable_rl:
-            print(f"   🤖 RL Agent: ENABLED (Q-Learning)")
+            print(f"   🤖 QMIX Multi-Agent: ENABLED ({NUM_QMIX_AGENTS} agents)")
+        if self.enable_migration:
+            print(f"   🔄 Migration: ENABLED")
         print("-" * 60)
     
     def _create_new_pm(self):
@@ -126,35 +141,37 @@ class Simulator:
         
         return placed, delayed, rejected
     
-    def _execute_containers_with_rl(self):
+    def _execute_containers_with_qmix(self):
         """
-        🤖 Execute containers with RL-based CPU allocation.
+        Execute containers with QMIX multi-agent RL.
         
         Returns:
-            tuple: (finished, violations, total_reward, actions_taken)
+            tuple: (finished, violations, total_reward, actions)
         """
         total_finished = 0
         total_violations = 0
-        total_reward = 0.0
-        actions_taken = []
         
-        for pm in self.pms:
-            if not pm.is_on or len(pm.containers) == 0:
-                continue
-            
-            # Update current time estimate for containers
+        # Get active PMs with containers
+        active_pms = [pm for pm in self.pms if pm.is_on and len(pm.containers) > 0]
+        
+        if not active_pms:
+            return 0, 0, 0.0, []
+        
+        # Update current time for containers
+        for pm in active_pms:
             for container in pm.containers:
-                # Use current simulation time for state extraction
                 container._current_time = self.current_time
-            
-            # 🤖 RL: Get state
-            state = self.rl_agent.get_state(pm)
-            
-            # 🤖 RL: Select action (policy)
-            action = self.rl_agent.select_action(state)
-            actions_taken.append(action)
-            
-            # 🤖 RL: Apply policy to get CPU allocations
+        
+        # Get states for all active PMs
+        states = [self.rl_agent.get_state(pm) for pm in active_pms]
+        
+        # QMIX: Decentralized execution - each agent selects action
+        actions = self.rl_agent.select_actions(states)
+        
+        # Apply policies and execute
+        rewards = []
+        for pm, action in zip(active_pms, actions):
+            # Apply selected policy
             allocations = AllocationPolicies.apply_policy_by_index(
                 action, pm.containers, pm.available_cores()
             )
@@ -162,44 +179,46 @@ class Simulator:
             # Assign cores to containers
             for i, container in enumerate(pm.containers):
                 if i < len(allocations):
-                    container.assigned_cores = max(0.1, allocations[i])  # Minimum 0.1 cores
+                    container.assigned_cores = max(0.1, allocations[i])
             
-            # Execute containers
+            # Execute containers for this time slot
             for container in pm.containers:
                 container.execute(CORE_SPEED, self.time_slot_duration)
             
-            # Remove finished and count violations
+            # Remove finished containers
             finished, violations = pm.remove_finished_containers(self.current_time)
             total_finished += finished
             total_violations += violations
             
-            # 🤖 RL: Calculate reward
+            # Calculate individual reward
             energy = self.energy_model.compute_pm_energy(pm)
             reward = -energy - (violations * RL_DEADLINE_VIOLATION_PENALTY)
-            total_reward += reward
-            
-            # 🤖 RL: Get next state and update Q-table
-            next_state = self.rl_agent.get_state(pm)
-            self.rl_agent.update(state, action, reward, next_state)
+            rewards.append(reward)
+        
+        # Get next states
+        next_states = [self.rl_agent.get_state(pm) for pm in active_pms]
+        
+        # QMIX: Store transition in replay buffer
+        self.rl_agent.store_transition(states, actions, rewards, next_states, done=False)
+        
+        # QMIX: Centralized training from replay buffer
+        self.rl_agent.train()
         
         self.total_containers_finished += total_finished
         self.total_deadline_violations += total_violations
         
-        return total_finished, total_violations, total_reward, actions_taken
+        total_reward = sum(rewards)
+        
+        return total_finished, total_violations, total_reward, actions
     
     def _execute_containers_baseline(self):
-        """
-        Baseline execution without RL (fixed allocation).
-        
-        Returns:
-            tuple: (finished, violations, 0.0, [])
-        """
+        """Baseline execution without RL (fixed allocation)."""
         total_finished = 0
         total_violations = 0
         
         for pm in self.pms:
             if pm.is_on and len(pm.containers) > 0:
-                # Fixed allocation: 1 core per container (or fair split)
+                # Fixed fair allocation
                 available = pm.available_cores()
                 cores_per_container = available / len(pm.containers) if pm.containers else 1
                 
@@ -217,11 +236,19 @@ class Simulator:
         return total_finished, total_violations, 0.0, []
     
     def _execute_containers(self):
-        """Execute containers (with or without RL)."""
+        """Execute containers (baseline or QMIX)."""
         if self.enable_rl:
-            return self._execute_containers_with_rl()
+            return self._execute_containers_with_qmix()
         else:
             return self._execute_containers_baseline()
+    
+    def _perform_migration(self):
+        """Perform migration if enabled."""
+        if not self.enable_migration:
+            return 0
+        
+        migrations = self.migration_module.check_and_migrate(self.pms, self.current_time)
+        return migrations
     
     def _compute_energy(self):
         """Compute energy consumption."""
@@ -229,8 +256,8 @@ class Simulator:
         total_power = sum(self.energy_model.compute_pm_power(pm) for pm in self.pms)
         return slot_energy, total_power
     
-    def _compute_metrics(self, rl_reward, rl_actions):
-        """Compute metrics including RL stats."""
+    def _compute_metrics(self, rl_reward, rl_actions, migrations):
+        """Compute metrics including QMIX stats."""
         active_pms = sum(1 for pm in self.pms if pm.is_on)
         total_containers = sum(len(pm.containers) for pm in self.pms)
         
@@ -254,15 +281,16 @@ class Simulator:
             'rejections': self.total_rejections,
             'slot_energy_kwh': slot_energy,
             'total_power_watts': total_power,
-            'rl_reward': rl_reward,                                    # 🤖 NEW
-            'rl_actions': rl_actions,                                  # 🤖 NEW
-            'rl_epsilon': self.rl_agent.epsilon if self.enable_rl else 0.0  # 🤖 NEW
+            'rl_reward': rl_reward,
+            'rl_actions': rl_actions,
+            'rl_epsilon': self.rl_agent.epsilon if self.enable_rl else 0.0,
+            'migrations': migrations
         }
         
         return metrics
     
     def _update_history(self, metrics):
-        """Update history."""
+        """Update simulation history."""
         self.history['time'].append(metrics['time'])
         self.history['active_pms'].append(metrics['active_pms'])
         self.history['total_containers'].append(metrics['total_containers'])
@@ -275,19 +303,25 @@ class Simulator:
             self.history['rl_actions'].append(metrics['rl_actions'])
             self.history['rl_rewards'].append(metrics['rl_reward'])
             self.history['rl_epsilon'].append(metrics['rl_epsilon'])
+        if self.enable_migration:
+            self.history['migrations'].append(metrics['migrations'])
     
     def _print_progress(self, metrics, placed, delayed, rejected, finished, violations):
-        """Print progress with RL info."""
+        """Print progress with QMIX info."""
         if DEBUG_MODE or self.current_slot % PRINT_EVERY_N_SLOTS == 0:
             print(f"[Slot {self.current_slot:3d} | Time {self.current_time:6.0f}s]")
             print(f"  PMs: {metrics['active_pms']}/{metrics['total_pms']} active | "
                   f"Containers: {metrics['total_containers']} running")
             
-            # 🤖 RL Actions
+            # QMIX Actions
             if self.enable_rl and metrics['rl_actions']:
                 action_names = [self.rl_agent.get_policy_name(a) for a in metrics['rl_actions']]
-                print(f"  🤖 RL Actions: {action_names}")
+                print(f"  🤖 QMIX Actions: {action_names}")
                 print(f"  🤖 Reward: {metrics['rl_reward']:.2f} | Epsilon: {metrics['rl_epsilon']:.3f}")
+            
+            # Migration info
+            if self.enable_migration and metrics['migrations'] > 0:
+                print(f"  🔄 Migrations: {metrics['migrations']}")
             
             print(f"  Placed: {placed} | Delayed: {delayed} | Rejected: {rejected}")
             print(f"  Finished: {finished} | Violations: {violations}")
@@ -300,7 +334,9 @@ class Simulator:
         """Execute one time slot."""
         placed, delayed, rejected = self._process_new_arrivals()
         finished, violations, rl_reward, rl_actions = self._execute_containers()
-        metrics = self._compute_metrics(rl_reward, rl_actions)
+        migrations = self._perform_migration()
+        
+        metrics = self._compute_metrics(rl_reward, rl_actions, migrations)
         self._update_history(metrics)
         self._print_progress(metrics, placed, delayed, rejected, finished, violations)
         
@@ -316,14 +352,13 @@ class Simulator:
         for slot in range(num_slots):
             self.run_time_slot()
         
-        # Decay epsilon after episode
         if self.enable_rl:
             self.rl_agent.decay_epsilon()
         
         self._print_final_summary()
     
     def _print_final_summary(self):
-        """Print final summary with RL stats."""
+        """Print final summary with QMIX statistics."""
         print("\n" + "=" * 60)
         print("✅ SIMULATION COMPLETED")
         print("=" * 60)
@@ -352,18 +387,28 @@ class Simulator:
         print(f"  Peak energy in slot: {energy_stats['peak_energy_slot']:.6f} kWh")
         print(f"  Estimated cost (@ $0.12/kWh): ${self.energy_model.estimate_cost():.4f}")
         
-        # 🤖 RL statistics
+        # QMIX Multi-Agent statistics
         if self.enable_rl:
             rl_stats = self.rl_agent.get_statistics()
-            print(f"\n🤖 RL AGENT STATISTICS:")
-            print(f"  Q-table size: {rl_stats['q_table_size']} state-action pairs")
-            print(f"  Total Q-updates: {rl_stats['total_updates']}")
+            print(f"\n🤖 QMIX MULTI-AGENT STATISTICS:")
+            print(f"  Number of agents: {rl_stats['num_agents']}")
+            print(f"  Total Q-entries: {rl_stats['total_q_entries']}")
+            print(f"  Replay buffer size: {rl_stats['replay_buffer_size']}")
+            print(f"  Training steps: {rl_stats['train_step_counter']}")
             print(f"  Final epsilon: {rl_stats['epsilon']:.3f}")
-            print(f"  Learning rate: {rl_stats['learning_rate']}")
-            print(f"  Discount factor: {rl_stats['discount_factor']}")
+            print(f"  Total updates: {rl_stats['total_updates']}")
             
-            avg_reward = sum(self.history['rl_rewards']) / len(self.history['rl_rewards'])
+            avg_reward = sum(self.history['rl_rewards']) / len(self.history['rl_rewards']) if self.history['rl_rewards'] else 0
             print(f"  Average reward: {avg_reward:.2f}")
+        
+        # Migration statistics
+        if self.enable_migration:
+            migration_stats = self.migration_module.get_statistics()
+            print(f"\n🔄 MIGRATION STATISTICS:")
+            print(f"  Total migrations: {migration_stats['total_migrations']}")
+            print(f"  PMs turned OFF: {migration_stats['pms_turned_off']}")
+            print(f"  PMs turned ON: {migration_stats['pms_turned_on']}")
+            print(f"  Failed migrations: {migration_stats['failed_migrations']}")
         
         # Placement statistics
         placement_stats = self.placement_module.get_statistics()
@@ -374,22 +419,22 @@ class Simulator:
         
         print("\n" + "=" * 60 + "\n")
     
-    def save_qtable(self, filepath="results/qtables/qtable.pkl"):
-        """Save Q-table."""
+    def save_qtable(self, filepath="results/qtables/qmix_qtable.pkl"):
+        """Save QMIX Q-tables."""
         if self.enable_rl:
             self.rl_agent.save(filepath)
     
-    def load_qtable(self, filepath="results/qtables/qtable.pkl"):
-        """Load Q-table."""
+    def load_qtable(self, filepath="results/qtables/qmix_qtable.pkl"):
+        """Load QMIX Q-tables."""
         if self.enable_rl:
             self.rl_agent.load(filepath)
     
     def get_history(self):
-        """Get history."""
+        """Get simulation history."""
         return self.history
     
     def get_summary_stats(self):
-        """Get summary stats."""
+        """Get summary statistics."""
         energy_stats = self.energy_model.get_energy_statistics()
         
         stats = {
@@ -407,20 +452,26 @@ class Simulator:
         }
         
         if self.enable_rl:
-            stats['rl_q_table_size'] = len(self.rl_agent.q_table)
-            stats['rl_total_updates'] = self.rl_agent.total_updates
+            rl_stats = self.rl_agent.get_statistics()
+            stats['qmix_num_agents'] = rl_stats['num_agents']
+            stats['qmix_total_entries'] = rl_stats['total_q_entries']
+            stats['qmix_replay_size'] = rl_stats['replay_buffer_size']
+            stats['qmix_total_updates'] = rl_stats['total_updates']
+        
+        if self.enable_migration:
+            migration_stats = self.migration_module.get_statistics()
+            stats['total_migrations'] = migration_stats['total_migrations']
+            stats['pms_turned_off'] = migration_stats['pms_turned_off']
         
         return stats
 
 
 def run_simulation(num_slots=50, workload_pattern='random', 
-                   placement_strategy='first_fit', enable_rl=True):
+                   placement_strategy='first_fit', enable_rl=True, enable_migration=True):
     """Quick simulation runner."""
     sim = Simulator(workload_pattern=workload_pattern, 
                     placement_strategy=placement_strategy,
-                    enable_rl=enable_rl)
+                    enable_rl=enable_rl,
+                    enable_migration=enable_migration)
     sim.run(num_slots=num_slots)
     return sim
-=======
-a
->>>>>>> 3fdc487e76549e8239d83e40c86355f2a7360963

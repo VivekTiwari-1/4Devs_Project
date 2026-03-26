@@ -1,0 +1,18 @@
+{
+  "timestamp": "20260325_134014",
+  "slots": 500,
+  "containers_arrived": 2004,
+  "containers_finished": 1961,
+  "violation_rate": 0.0589,
+  "rejection_rate": 0.0,
+  "peak_pms": 2,
+  "total_pms_created": 7,
+  "avg_cpu_util": 0.2274,
+  "total_energy_kwh": 914.3885,
+  "early_avg_reward": -4.3798,
+  "late_avg_reward": -3.9517,
+  "reward_improved": true,
+  "final_epsilon": 0.05,
+  "total_q_entries": 58,
+  "total_migrations": 16
+}

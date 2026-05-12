@@ -444,11 +444,11 @@ class Simulator:
             avg_reward = sum(self.history['rl_rewards']) / len(self.history['rl_rewards']) if self.history['rl_rewards'] else 0
             print(f"  Average reward: {avg_reward:.2f}")
             # FIX: Show reward trend (first 50 vs last 50 slots)
-            if len(self.history['rl_rewards']) >= 100:
-                early  = sum(self.history['rl_rewards'][:50])  / 50
-                late   = sum(self.history['rl_rewards'][-50:]) / 50
-                trend  = "📈 IMPROVING" if late > early else "📉 NOT IMPROVING"
-                print(f"  Reward trend: {early:.2f} (early) → {late:.2f} (late)  {trend}")
+            # if len(self.history['rl_rewards']) >= 100:
+            #     early  = sum(self.history['rl_rewards'][:50])  / 50
+            #     late   = sum(self.history['rl_rewards'][-50:]) / 50
+            #     trend  = "📈 IMPROVING" if late > early else "📉 NOT IMPROVING"
+            #     print(f"  Reward trend: {early:.2f} (early) → {late:.2f} (late)  {trend}")
 
         if self.enable_migration:
             migration_stats = self.migration_module.get_statistics()

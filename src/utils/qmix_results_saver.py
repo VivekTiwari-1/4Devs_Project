@@ -49,9 +49,9 @@ class QMIXResultsSaver:
         self._save_summary_json(sim)
         self._save_qtables(sim)
 
-        print(f"✅ All results saved with timestamp: {self.timestamp}")
-        print(f"   📁 {self.sim_outputs_dir}/")
-        print(f"   📁 {self.qtables_dir}/")
+        # print(f"✅ All results saved with timestamp: {self.timestamp}")
+        # print(f"   📁 {self.sim_outputs_dir}/")
+        # print(f"   📁 {self.qtables_dir}/")
 
     def _save_per_slot_csv(self, sim):
         """

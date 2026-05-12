@@ -44,17 +44,22 @@ def main():
     saver.save_all(sim)
 
     # ── Print QMIX agent summary
-    summary = sim.get_summary_stats()
-    if 'qmix_num_agents' in summary:
-        print(f"\n🤖 QMIX AGENT INFO:")
-        print(f"  ✓ Number of agents:    {summary['qmix_num_agents']}")
-        print(f"  ✓ Total Q-entries:     {summary['qmix_total_entries']}")
-        print(f"  ✓ Replay buffer size:  {summary['qmix_replay_size']}")
-        print(f"  ✓ Total updates:       {summary['qmix_total_updates']}")
+    # summary = sim.get_summary_stats()
+    # if 'qmix_num_agents' in summary:
+    #     print(f"\n🤖 QMIX AGENT INFO:")
+    #     print(f"  ✓ Number of agents:    {summary['qmix_num_agents']}")
+    #     print(f"  ✓ Total Q-entries:     {summary['qmix_total_entries']}")
+    #     print(f"  ✓ Replay buffer size:  {summary['qmix_replay_size']}")
+    #     print(f"  ✓ Total updates:       {summary['qmix_total_updates']}")
 
-    print("\n💡 To generate plots, run:")
-    print("   python scripts/plot_qmix_results.py")
-    print("   python scripts/plot_qmix_results.py --individual   (saves each graph separately)\n")
+    # print("\n💡 To generate plots, run:")
+    # print("   python scripts/plot_qmix_results.py")
+    # print("   python scripts/plot_qmix_results.py --individual   (saves each graph separately)\n")
+
+    # print("\n💡 To generate comparison plots, run:")
+    # print("   python scripts/plot_comparison.py")
+    # print("   python scripts/plot_comparison.py --individual   (saves each graph separately)\n")
+
 
     return sim
 
